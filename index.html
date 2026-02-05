@@ -3,85 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <title>MJG Voice Systems</title>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="MJG Voice">
-    <meta name="theme-color" content="#0a0e14">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
-    <link rel="icon" type="image/png" href="icon.png">
-    <link rel="apple-touch-icon" href="icon.png">
     <link rel="manifest" href="manifest.json">
     
     <style>
         :root { --cyan: #00d4ff; --red: #ff4757; --dark: #0a0e14; --panel: #111821; }
-        
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
 
         body { 
             background: var(--dark); color: white; font-family: 'Segoe UI', sans-serif; 
-            margin: 0; display: flex; flex-direction: column; 
-            height: 100vh; width: 100vw;
-            overflow: hidden; /* Evita scroll vertical de la página */
-            position: fixed; /* Bloquea el rebote en iOS */
+            display: flex; flex-direction: column; height: 100vh; width: 100vw; overflow: hidden;
+            position: fixed;
         }
 
-        .brand { padding: 10px; text-align: center; letter-spacing: 4px; color: var(--cyan); font-size: 0.8rem; border-bottom: 1px solid #222; flex-shrink: 0; }
+        .brand { height: 40px; display: flex; align-items: center; justify-content: center; letter-spacing: 4px; color: var(--cyan); font-size: 0.7rem; border-bottom: 1px solid #222; flex-shrink: 0; }
         
-        #history { flex: 1; padding: 15px; overflow-y: auto; color: #555; font-family: monospace; text-align: right; font-size: 1rem; }
+        #history { flex: 1; padding: 10px; overflow-y: auto; color: #555; font-family: monospace; text-align: right; font-size: 0.9rem; }
         
-        .display { 
-            padding: 10px 20px; 
-            background: rgba(255,255,255,0.02); 
-            text-align: right;
-            flex-shrink: 0;
-        }
+        .display { padding: 15px 20px; background: rgba(255,255,255,0.02); text-align: right; flex-shrink: 0; }
+        #transcript { color: var(--cyan); font-size: 0.8rem; min-height: 1.2rem; margin-bottom: 5px; opacity: 0.6; font-style: italic; }
         
-        #transcript { color: var(--cyan); font-size: 0.9rem; min-height: 1.2rem; margin-bottom: 5px; opacity: 0.7; }
-        
-        /* Scroll horizontal para números gigantes */
         #result { 
-            font-size: 4.5rem; 
-            font-weight: bold; 
-            margin: 0; 
-            line-height: 1; 
-            overflow-x: auto; 
-            white-space: nowrap;
-            scrollbar-width: none;
-            direction: ltr; /* Mantiene la lógica de lectura de izquierda a derecha */
+            font-size: 4.5rem; font-weight: bold; line-height: 1; 
+            overflow-x: auto; white-space: nowrap; scrollbar-width: none;
+            direction: ltr; text-align: right;
         }
         #result::-webkit-scrollbar { display: none; }
 
-        .voice-area { padding: 15px; display: flex; justify-content: center; background: var(--panel); flex-shrink: 0; }
-        
+        .voice-area { padding: 12px; background: var(--panel); display: flex; justify-content: center; flex-shrink: 0; }
         #micBtn { 
             background: transparent; border: 2px solid var(--cyan); color: var(--cyan); 
-            padding: 14px; border-radius: 50px; cursor: pointer; font-weight: bold; width: 85%;
-            transition: all 0.3s;
+            padding: 14px; border-radius: 50px; font-weight: bold; width: 90%; transition: 0.3s;
         }
-        #micBtn.active { background: var(--red); border-color: var(--red); color: white; box-shadow: 0 0 20px var(--red); }
+        #micBtn.active { background: var(--red); border-color: var(--red); color: white; box-shadow: 0 0 15px var(--red); }
         
         .keypad { 
-            display: grid; 
-            grid-template-columns: repeat(4, 1fr); 
-            gap: 1px; 
-            background: #222; 
-            border-top: 1px solid #333; 
+            display: grid; grid-template-columns: repeat(4, 1fr); 
+            background: #222; gap: 1px; border-top: 1px solid #333;
             flex-shrink: 0;
+            padding-bottom: env(safe-area-inset-bottom);
         }
         
-        button.key { background: var(--dark); border: none; color: white; padding: 18px; font-size: 1.6rem; cursor: pointer; outline: none; }
+        button.key { background: var(--dark); border: none; color: white; height: clamp(60px, 10vh, 80px); font-size: 1.6rem; cursor: pointer; }
         button.key:active { background: #1a2430; }
         button.op { color: var(--cyan); font-weight: bold; }
-        button.eq { background: var(--cyan); color: var(--dark); font-weight: bold; }
+        button.eq { background: var(--cyan) !important; color: var(--dark); font-weight: bold; }
         button.del { color: var(--red); font-size: 1.1rem; }
-
-        /* Forzar visualización vertical si el usuario gira */
-        @media screen and (orientation: landscape) {
-            body { transform: none; } 
-        }
     </style>
 </head>
 <body>
@@ -89,7 +58,7 @@
     <div class="brand">MJG VOICE SYSTEMS</div>
     <div id="history"></div>
     <div class="display">
-        <div id="transcript">modo híbrido listo</div>
+        <div id="transcript">esperando voz...</div>
         <div id="result">0</div>
     </div>
     <div class="voice-area">
@@ -117,20 +86,15 @@
     </div>
 
     <script>
-        // Bloqueo de orientación por software (Funciona al instalar como PWA)
-        if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('portrait').catch(err => console.log("Orien. lock no soportado"));
-        }
-
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const recognition = new SpeechRecognition();
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
         recognition.lang = 'es-AR';
+        recognition.continuous = false;
         let isListening = false, currentInput = "", acumulado = 0;
 
         const resEl = document.getElementById('result'), transEl = document.getElementById('transcript');
         const histEl = document.getElementById('history'), micBtn = document.getElementById('micBtn');
 
-        function toggleListen() { if (!isListening) recognition.start(); else recognition.stop(); }
+        function toggleListen() { isListening ? recognition.stop() : recognition.start(); }
         
         recognition.onstart = () => { isListening = true; micBtn.classList.add('active'); micBtn.innerText = "Escuchando..."; };
         recognition.onend = () => { isListening = false; micBtn.classList.remove('active'); micBtn.innerText = "Presionar para hablar"; };
@@ -142,16 +106,21 @@
         };
 
         function processVoice(text) {
-            // Mapeo mejorado: Resta y División
-            let clean = text.replace(/ coma | con | punto /g, '.')
-                .replace(/,/g, '.')
-                .replace(/más/g, '+')
-                .replace(/menos|resta/g, '-')
-                .replace(/por|x|multiplicado por/g, '*')
-                .replace(/dividido|dividir|sobre|entre/g, '/')
-                .replace(/[^0-9\+\-\*\/\.]/g, '');
+            // Mapeo exhaustivo para evitar errores de interpretación
+            let clean = text
+                .replace(/ dividido por | dividido | dividir | sobre | entre /g, '/')
+                .replace(/ menos | resta | quítale /g, '-')
+                .replace(/ más | suma | agrégale /g, '+')
+                .replace(/ por | x | multiplicado por /g, '*')
+                .replace(/ coma | con | punto /g, '.')
+                .replace(/,/g, '.');
 
-            if (acumulado !== 0 && !/^[\+\-\*\/]/.test(clean)) {
+            // Eliminar cualquier texto que no sea números o operadores
+            clean = clean.replace(/[^0-9\+\-\*\/\.]/g, '');
+
+            // REGLA DE ORO: Si hay un acumulado y lo primero que detectamos es un número 
+            // (sin operador), forzamos una suma para no "pegar" los números.
+            if (acumulado !== 0 && /^[0-9]/.test(clean)) {
                 clean = "+" + clean;
             }
 
@@ -167,22 +136,16 @@
 
         function updateDisplay() {
             resEl.innerText = currentInput || "0";
-            // Scroll automático para ver siempre el final (el total)
-            setTimeout(() => {
-                resEl.scrollLeft = resEl.scrollWidth;
-            }, 10);
-        }
-
-        function deleteLast() { 
-            currentInput = currentInput.toString().slice(0, -1); 
-            updateDisplay();
+            // Forzar scroll a la derecha para ver siempre el total
+            setTimeout(() => { resEl.scrollLeft = resEl.scrollWidth; }, 50);
         }
 
         function calculate(speakVal = false) {
             try {
                 let formula = currentInput || "0";
-                if (formula.endsWith('.') || /[\+\-\*\/]$/.test(formula)) return;
+                if (/[\+\-\*\/]$/.test(formula)) return;
                 
+                // Realizar el cálculo
                 const total = new Function('return ' + formula)();
                 
                 if (total !== undefined && !isNaN(total)) {
@@ -200,23 +163,30 @@
                     if (speakVal) speak(formatted);
                 }
             } catch (e) { 
-                transEl.innerText = "Error en operación";
+                transEl.innerText = "Error de interpretación";
             }
         }
 
         function clearAll() { 
-            acumulado = 0; 
-            currentInput = ""; 
-            resEl.innerText = "0"; 
-            histEl.innerHTML = ""; 
-            transEl.innerText = "limpio";
+            acumulado = 0; currentInput = ""; resEl.innerText = "0"; 
+            histEl.innerHTML = ""; transEl.innerText = "memoria limpia";
             window.speechSynthesis.cancel(); 
         }
-        
+
+        function deleteLast() { 
+            currentInput = currentInput.toString().slice(0, -1); 
+            updateDisplay(); 
+        }
+
         function speak(val) { 
             const u = new SpeechSynthesisUtterance(val); 
             u.lang = 'es-AR'; 
             window.speechSynthesis.speak(u); 
+        }
+
+        // Intentar bloquear orientación si está instalada
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('portrait').catch(() => {});
         }
     </script>
 </body>
