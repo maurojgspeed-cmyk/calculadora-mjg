@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="manifest.json">
     
     <style>
@@ -28,7 +29,7 @@
         #result { 
             font-size: 4.5rem; font-weight: bold; line-height: 1; 
             overflow-x: auto; white-space: nowrap; scrollbar-width: none;
-            direction: ltr; text-align: right;
+            text-align: right;
         }
         #result::-webkit-scrollbar { display: none; }
 
@@ -46,11 +47,18 @@
             padding-bottom: env(safe-area-inset-bottom);
         }
         
-        button.key { background: var(--dark); border: none; color: white; height: clamp(60px, 10vh, 80px); font-size: 1.6rem; cursor: pointer; }
+        button.key { background: var(--dark); border: none; color: white; height: clamp(65px, 10vh, 85px); font-size: 1.6rem; cursor: pointer; }
         button.key:active { background: #1a2430; }
         button.op { color: var(--cyan); font-weight: bold; }
         button.eq { background: var(--cyan) !important; color: var(--dark); font-weight: bold; }
         button.del { color: var(--red); font-size: 1.1rem; }
+
+        /* Bloqueo visual de giro */
+        @media screen and (orientation: landscape) {
+            body { flex-direction: row; }
+            .keypad { grid-template-columns: repeat(6, 1fr); width: 60%; height: 100%; }
+            #history, .display { width: 40%; }
+        }
     </style>
 </head>
 <body>
@@ -88,14 +96,12 @@
     <script>
         const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
         recognition.lang = 'es-AR';
-        recognition.continuous = false;
         let isListening = false, currentInput = "", acumulado = 0;
 
         const resEl = document.getElementById('result'), transEl = document.getElementById('transcript');
         const histEl = document.getElementById('history'), micBtn = document.getElementById('micBtn');
 
         function toggleListen() { isListening ? recognition.stop() : recognition.start(); }
-        
         recognition.onstart = () => { isListening = true; micBtn.classList.add('active'); micBtn.innerText = "Escuchando..."; };
         recognition.onend = () => { isListening = false; micBtn.classList.remove('active'); micBtn.innerText = "Presionar para hablar"; };
         
@@ -106,25 +112,33 @@
         };
 
         function processVoice(text) {
-            // Mapeo exhaustivo para evitar errores de interpretación
-            let clean = text
-                .replace(/ dividido por | dividido | dividir | sobre | entre /g, '/')
-                .replace(/ menos | resta | quítale /g, '-')
-                .replace(/ más | suma | agrégale /g, '+')
-                .replace(/ por | x | multiplicado por /g, '*')
-                .replace(/ coma | con | punto /g, '.')
-                .replace(/,/g, '.');
+            // 1. Limpieza de palabras y conversión a símbolos
+            let raw = text.replace(/ dividido por | dividido | dividir | sobre | entre /g, '/')
+                         .replace(/ por | x | multiplicado por /g, '*')
+                         .replace(/ más | suma /g, '+')
+                         .replace(/ menos | resta /g, '-')
+                         .replace(/ coma | con | punto /g, '.')
+                         .replace(/,/g, '.')
+                         .replace(/\s/g, ''); // Quitamos espacios
 
-            // Eliminar cualquier texto que no sea números o operadores
-            clean = clean.replace(/[^0-9\+\-\*\/\.]/g, '');
-
-            // REGLA DE ORO: Si hay un acumulado y lo primero que detectamos es un número 
-            // (sin operador), forzamos una suma para no "pegar" los números.
-            if (acumulado !== 0 && /^[0-9]/.test(clean)) {
-                clean = "+" + clean;
+            // 2. EL TRUCO PARA EL MENOS: 
+            // Si el sistema entendió "-8" como un solo bloque, pero tenemos acumulado, 
+            // forzamos a que ese "-" sea tratado como operación.
+            if (acumulado !== 0) {
+                if (raw.startsWith('-')) {
+                    // Ya tiene el signo, se lo dejamos
+                } else if (!isNaN(raw.charAt(0))) {
+                    // Si empieza con número, le ponemos el "+" automático
+                    raw = "+" + raw;
+                }
             }
 
-            currentInput = acumulado !== 0 ? acumulado + clean : clean;
+            // 3. Limpiar caracteres no matemáticos
+            let clean = raw.replace(/[^0-9\+\-\*\/\.]/g, '');
+
+            // 4. Unir con lo que ya teníamos
+            currentInput = acumulado !== 0 ? acumulado.toString() + clean : clean;
+            
             calculate(true);
         }
 
@@ -136,7 +150,6 @@
 
         function updateDisplay() {
             resEl.innerText = currentInput || "0";
-            // Forzar scroll a la derecha para ver siempre el total
             setTimeout(() => { resEl.scrollLeft = resEl.scrollWidth; }, 50);
         }
 
@@ -145,8 +158,8 @@
                 let formula = currentInput || "0";
                 if (/[\+\-\*\/]$/.test(formula)) return;
                 
-                // Realizar el cálculo
-                const total = new Function('return ' + formula)();
+                // EVALUACIÓN SEGURA
+                const total = eval(formula); 
                 
                 if (total !== undefined && !isNaN(total)) {
                     const formatted = Number.isInteger(total) ? total : parseFloat(total.toFixed(2));
@@ -162,31 +175,21 @@
                     
                     if (speakVal) speak(formatted);
                 }
-            } catch (e) { 
-                transEl.innerText = "Error de interpretación";
-            }
+            } catch (e) { transEl.innerText = "Error en cuenta"; }
         }
 
         function clearAll() { 
             acumulado = 0; currentInput = ""; resEl.innerText = "0"; 
-            histEl.innerHTML = ""; transEl.innerText = "memoria limpia";
+            histEl.innerHTML = ""; transEl.innerText = "listo";
             window.speechSynthesis.cancel(); 
         }
 
-        function deleteLast() { 
-            currentInput = currentInput.toString().slice(0, -1); 
-            updateDisplay(); 
-        }
+        function deleteLast() { currentInput = currentInput.toString().slice(0, -1); updateDisplay(); }
 
         function speak(val) { 
             const u = new SpeechSynthesisUtterance(val); 
             u.lang = 'es-AR'; 
             window.speechSynthesis.speak(u); 
-        }
-
-        // Intentar bloquear orientación si está instalada
-        if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('portrait').catch(() => {});
         }
     </script>
 </body>
