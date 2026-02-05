@@ -19,10 +19,24 @@
             position: fixed;
         }
 
-        .brand { height: 40px; display: flex; align-items: center; justify-content: center; letter-spacing: 4px; color: var(--cyan); font-size: 0.7rem; border-bottom: 1px solid #222; flex-shrink: 0; }
+        .header { 
+            height: 50px; display: flex; align-items: center; justify-content: space-between; 
+            padding: 0 15px; border-bottom: 1px solid #222; flex-shrink: 0; 
+        }
+        .brand { letter-spacing: 2px; color: var(--cyan); font-size: 0.7rem; font-weight: bold; }
         
+        /* Botón de Imagen */
+        .img-upload-btn {
+            background: #222; color: var(--cyan); border: 1px solid var(--cyan);
+            padding: 5px 10px; border-radius: 5px; font-size: 0.7rem; cursor: pointer;
+        }
+
         #history { flex: 1; padding: 10px; overflow-y: auto; color: #555; font-family: monospace; text-align: right; font-size: 0.9rem; }
         
+        /* Contenedor de imagen previa */
+        #previewContainer { text-align: center; padding: 5px; display: none; }
+        #previewImg { max-height: 80px; border-radius: 5px; border: 1px solid #444; }
+
         .display { padding: 15px 20px; background: rgba(255,255,255,0.02); text-align: right; flex-shrink: 0; }
         #transcript { color: var(--cyan); font-size: 0.8rem; min-height: 1.2rem; margin-bottom: 5px; opacity: 0.6; font-style: italic; }
         
@@ -47,31 +61,45 @@
             padding-bottom: env(safe-area-inset-bottom);
         }
         
-        button.key { background: var(--dark); border: none; color: white; height: clamp(65px, 10vh, 85px); font-size: 1.6rem; cursor: pointer; }
+        button.key { background: var(--dark); border: none; color: white; height: clamp(60px, 10vh, 85px); font-size: 1.6rem; cursor: pointer; }
         button.key:active { background: #1a2430; }
         button.op { color: var(--cyan); font-weight: bold; }
         button.eq { background: var(--cyan) !important; color: var(--dark); font-weight: bold; }
         button.del { color: var(--red); font-size: 1.1rem; }
 
-        /* Bloqueo visual de giro */
         @media screen and (orientation: landscape) {
-            body { flex-direction: row; }
-            .keypad { grid-template-columns: repeat(6, 1fr); width: 60%; height: 100%; }
+            body { flex-direction: row; flex-wrap: wrap; }
+            .header { width: 100%; }
+            .keypad { grid-template-columns: repeat(6, 1fr); width: 60%; height: calc(100% - 50px); }
             #history, .display { width: 40%; }
         }
     </style>
 </head>
 <body>
 
-    <div class="brand">MJG VOICE SYSTEMS</div>
+    <div class="header">
+        <div class="brand">MJG VOICE SYSTEMS</div>
+        <label class="img-upload-btn">
+            📷 SUBIR IMAGEN
+            <input type="file" accept="image/*" style="display:none" onchange="handleImage(this)">
+        </label>
+    </div>
+
     <div id="history"></div>
+    
+    <div id="previewContainer">
+        <img id="previewImg" src="">
+    </div>
+
     <div class="display">
         <div id="transcript">esperando voz...</div>
         <div id="result">0</div>
     </div>
+
     <div class="voice-area">
         <button id="micBtn" onclick="toggleListen()">Presionar para hablar</button>
     </div>
+
     <div class="keypad">
         <button class="key del" onclick="clearAll()">AC</button>
         <button class="key op" onclick="addChar('/')">÷</button>
@@ -101,6 +129,22 @@
         const resEl = document.getElementById('result'), transEl = document.getElementById('transcript');
         const histEl = document.getElementById('history'), micBtn = document.getElementById('micBtn');
 
+        // Función para manejar la imagen
+        function handleImage(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('previewImg').src = e.target.result;
+                    document.getElementById('previewContainer').style.display = 'block';
+                    const item = document.createElement('div');
+                    item.innerHTML = 🖼️ Imagen cargada: ${file.name};
+                    histEl.appendChild(item);
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
         function toggleListen() { isListening ? recognition.stop() : recognition.start(); }
         recognition.onstart = () => { isListening = true; micBtn.classList.add('active'); micBtn.innerText = "Escuchando..."; };
         recognition.onend = () => { isListening = false; micBtn.classList.remove('active'); micBtn.innerText = "Presionar para hablar"; };
@@ -112,33 +156,26 @@
         };
 
         function processVoice(text) {
-            // 1. Limpieza de palabras y conversión a símbolos
-            let raw = text.replace(/ dividido por | dividido | dividir | sobre | entre /g, '/')
-                         .replace(/ por | x | multiplicado por /g, '*')
-                         .replace(/ más | suma /g, '+')
-                         .replace(/ menos | resta /g, '-')
-                         .replace(/ coma | con | punto /g, '.')
-                         .replace(/,/g, '.')
-                         .replace(/\s/g, ''); // Quitamos espacios
+            let raw = text
+                .replace(/ dividido por | dividido | dividir | dividí /g, '/')
+                .replace(/ sobre | entre /g, '/')
+                .replace(/ por | x | multiplicado por /g, '*')
+                .replace(/ más | suma /g, '+')
+                .replace(/ menos | resta /g, '-')
+                .replace(/ coma | con | punto /g, '.')
+                .replace(/,/g, '.')
+                .replace(/\s+/g, '');
 
-            // 2. EL TRUCO PARA EL MENOS: 
-            // Si el sistema entendió "-8" como un solo bloque, pero tenemos acumulado, 
-            // forzamos a que ese "-" sea tratado como operación.
             if (acumulado !== 0) {
-                if (raw.startsWith('-')) {
-                    // Ya tiene el signo, se lo dejamos
+                if (raw.startsWith('-') || raw.startsWith('/')) {
+                    // Mantiene el signo
                 } else if (!isNaN(raw.charAt(0))) {
-                    // Si empieza con número, le ponemos el "+" automático
                     raw = "+" + raw;
                 }
             }
 
-            // 3. Limpiar caracteres no matemáticos
             let clean = raw.replace(/[^0-9\+\-\*\/\.]/g, '');
-
-            // 4. Unir con lo que ya teníamos
             currentInput = acumulado !== 0 ? acumulado.toString() + clean : clean;
-            
             calculate(true);
         }
 
@@ -157,22 +194,16 @@
             try {
                 let formula = currentInput || "0";
                 if (/[\+\-\*\/]$/.test(formula)) return;
-                
-                // EVALUACIÓN SEGURA
                 const total = eval(formula); 
-                
                 if (total !== undefined && !isNaN(total)) {
                     const formatted = Number.isInteger(total) ? total : parseFloat(total.toFixed(2));
-                    
                     const item = document.createElement('div');
                     item.innerText = formula + " = " + formatted;
                     histEl.appendChild(item);
                     histEl.scrollTop = histEl.scrollHeight;
-                    
                     acumulado = formatted; 
                     currentInput = acumulado.toString();
                     updateDisplay();
-                    
                     if (speakVal) speak(formatted);
                 }
             } catch (e) { transEl.innerText = "Error en cuenta"; }
@@ -180,17 +211,13 @@
 
         function clearAll() { 
             acumulado = 0; currentInput = ""; resEl.innerText = "0"; 
-            histEl.innerHTML = ""; transEl.innerText = "listo";
+            histEl.innerHTML = ""; transEl.innerText = "esperando voz...";
+            document.getElementById('previewContainer').style.display = 'none';
             window.speechSynthesis.cancel(); 
         }
 
         function deleteLast() { currentInput = currentInput.toString().slice(0, -1); updateDisplay(); }
-
-        function speak(val) { 
-            const u = new SpeechSynthesisUtterance(val); 
-            u.lang = 'es-AR'; 
-            window.speechSynthesis.speak(u); 
-        }
+        function speak(val) { const u = new SpeechSynthesisUtterance(val); u.lang = 'es-AR'; window.speechSynthesis.speak(u); }
     </script>
 </body>
 </html>
